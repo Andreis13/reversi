@@ -3,22 +3,7 @@ require 'reversi/move'
 
 module Reversi
   class Board
-    WHITE_CIRCLE = " \u25cb "
-    BLACK_CIRCLE = " \u25cf "
 
-    BORDER = {
-      tl_corner: "\u250C",
-      bl_corner: "\u2514",
-      tr_corner: "\u2510",
-      br_corner: "\u2518",
-      vert_pipe: "\u2502",
-      horz_pipe: "\u2500\u2500\u2500",
-      left_t:    "\u251C",
-      right_t:   "\u2524",
-      top_t:     "\u252C",
-      bottom_t:  "\u2534",
-      cross:     "\u253C"
-    }
 
     OPPOSITE = {
       black: :white,
@@ -34,21 +19,34 @@ module Reversi
       8.times { @cells << [:blank] * 8 }
       @cells[3][3] = @cells[4][4] = :white
       @cells[3][4] = @cells[4][3] = :black
+      current_player = :black
       compute_available_moves!
     end
 
-    def place_white(i, j)
-      place(i, j, :white)
+    def make_move(color, row:, col:)
+      return unless current_player == color && valid_move?(color, row: row, col: col)
+      place(color, row: row, col: col)
+      switch_players
     end
 
-    def place_black(i, j)
-      place(i, j, :black)
+    def white_count
+      @cells.flatten.count { |c| c == :white }
     end
 
-    def place(i, j, type)
-      return unless @cells[i][j] == :blank
+    def black_count
+      @cells.flatten.count { |c| c == :black }
+    end
 
-      rays = get_rays(i, j, type)
+    private
+
+    def switch_players
+      current_player = current_player == :black ? :white : :black
+    end
+
+    def place(color, row:, col:)
+      return unless @cells[row][col] == :blank
+
+      rays = get_rays(row, col, color)
       return if rays.all? { |r| r.empty? }
 
       rays.each do |ray|
@@ -57,37 +55,23 @@ module Reversi
         end
       end
 
-      @cells[i][j] = type
-    end
-
-    def make_move(m)
-      place(m.i, m.j, m.color)
-      compute_available_moves!
-    end
-
-    def compute_available_moves!
-      @moves = []
-      all_coords.each do |i, j|
-        next unless @cells[i][j] == :blank
-        @moves << Move.new(i, j, :white) if get_rays(i, j, :white).any? { |r| !r.empty? }
-        @moves << Move.new(i, j, :black) if get_rays(i, j, :black).any? { |r| !r.empty? }
-      end
+      @cells[i][j] = color
     end
 
     def all_coords
       (0..7).to_a.product((0..7).to_a)
     end
 
-    def valid_move?(m)
-      @moves.include?(m)
+    def valid_move?(color, row:, col:)
+      get_rays(row, col, color).any? { |r| !r.empty? }
     end
 
-    def moves(color = nil)
-      if color
-        @moves.select { |m| m.color == color }
-      else
-        @moves
-      end
+    def moves(color)
+      @moves.select { |m| m.color == color }
+    end
+
+    def complete?
+      (moves(:black).count + moves(:white).count) == 0
     end
 
     def get_rays(i, j, type)
@@ -118,45 +102,6 @@ module Reversi
 
     def toggle(i, j)
       @cells[i][j] = OPPOSITE[@cells[i][j]]
-    end
-
-    def white_count
-      @cells.flatten.count { |c| c == :white }
-    end
-
-    def black_count
-      @cells.flatten.count { |c| c == :black }
-    end
-
-    def to_lines
-      top = "#{BORDER[:tl_corner]}#{([BORDER[:horz_pipe]] * 8).join(BORDER[:top_t])}#{BORDER[:tr_corner]}"
-      middle = "#{BORDER[:left_t]}#{([BORDER[:horz_pipe]] * 8).join(BORDER[:cross])}#{BORDER[:right_t]}"
-      bottom = "#{BORDER[:bl_corner]}#{([BORDER[:horz_pipe]] * 8).join(BORDER[:bottom_t])}#{BORDER[:br_corner]}"
-
-      lines = @cells.map { |line| "#{BORDER[:vert_pipe]}#{circles(line).join(BORDER[:vert_pipe])}#{BORDER[:vert_pipe]}" }
-
-      lines_with_middle = lines.inject([]) do |acc, itm|
-        acc << middle unless acc.empty?
-        acc << itm
-        acc
-      end
-
-      [top, lines_with_middle, bottom].flatten
-    end
-
-
-    def to_s
-      to_lines.join("\n")
-    end
-
-    def circles(arr)
-      arr.map do |itm|
-        case itm
-        when :white then WHITE_CIRCLE
-        when :black then BLACK_CIRCLE
-        else '   '
-        end
-      end
     end
   end
 end

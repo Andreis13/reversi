@@ -3,4 +3,4 @@
 require "bundler/setup"
 require "reversi"
 
-Reversi::UI.new.run
+Reversi::Game.new.start
